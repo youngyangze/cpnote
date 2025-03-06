@@ -1,0 +1,481 @@
+%remake goddamn codes
+\documentclass[landscape, 8pt, a4paper, oneside, twocolumn]{extarticle}
+\usepackage[compact]{titlesec}
+\titlespacing*{\section}
+{0pt}{0px plus 1px minus 0px}{-2px plus 0px minus 0px}
+\titlespacing*{\subsection}
+{0pt}{0px plus 1px minus 0px}{0px plus 3px minus 3px}
+\setlength{\columnseprule}{0.4pt}
+\pagenumbering{arabic}
+\usepackage{kotex}
+\usepackage[left=0.8cm, right=0.8cm, top=2cm, bottom=0.3cm, a4paper]{geometry}
+\usepackage{amsmath}
+\usepackage{ulem}
+\usepackage{amssymb}
+\usepackage{minted}
+\usepackage{color, hyperref}
+\usepackage{indentfirst}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\pagestyle{fancy}
+\fancyfoot{}
+
+\headsep 0.2cm
+
+\setminted{breaklines=true, tabsize=2, breaksymbolleft=}
+\usemintedstyle{perldoc}
+
+\title{Competitve Programming Note}
+\author{youngyangze(Hanbyeol Lee)}
+\date{Compiled on \today}
+
+\newcommand{\revised}{Should be \textcolor{red}{\textbf{revised}}.}
+\newcommand{\tested}{Should be \textcolor{red}{\textbf{tested}}.}
+\newcommand{\added}{Should be \textcolor{red}{\textbf{added}}.}
+\newcommand{\WIP}{\textcolor{red}{\textbf{WIP}}}
+\begin{document} {
+	\Large
+
+	\maketitle
+
+\tableofcontents
+}
+\thispagestyle{fancy}
+\pagebreak
+\textcolor{red}{\textbf{PLEASE CHECK THE STATEMENT AGAIN}}\\
+\, \textcolor{blue}{\textbf{EDITOR SHOULD ADD SOME COMMENTS IN EACH THINGS}}
+\section{Math}
+\subsection{Exponentiation by Squaring}
+{A fast exponentiation, works in $O(\log k)$}
+\begin{minted}{cpp}
+ll pow1(ll n, ll k) {
+    ll ret = 1;
+    while (k) {
+        if (k & 1) ret *= n;
+        n *= n;
+        k >>= 1;
+    }
+    return ret;
+}
+
+ll pow2(ll n, ll k, ll mod) {
+    if (mod == 1) return 0;
+    ll ret = 1;
+    n %= mod;
+    while (k > 0) {
+        if (k & 1) ret = (ret * n) % mod;
+        k >>= 1;
+        n = (n * n) % mod;
+    }
+    return ret;
+}
+\end{minted}
+\subsection{Euler Phi}
+{Calculates $\phi(n)$ in $O(\sqrt{n})$}\\
+{Formula of $\phi(n)$: $|k\in \{1,\dots,n\}:\gcd{n,k}=1|$}
+\begin{minted}{cpp}
+ll phi(ll n) {
+    ll ret = n;
+    for (ll i = 2; i * i <= n; i++) {
+        if (n % i == 0) {
+            while (n % i == 0) n /= i;
+            ret -= ret / i;
+        }
+    }
+    if (1 < n) ret -= ret / n;
+    return ret;
+}
+\end{minted}
+\subsection{Xudyh's sieve}
+{Finds $M(n)$(known as Mertens function) in $O(N^{\frac{2}{3}})$ where $M(n)=\sum_{i=1}^n \mu(i)$}
+\begin{minted}{cpp}
+const int MAX = 15000009;
+
+bool chk[MAX + 1];
+ll mu(MAX + 1, 1), pri, pre(MAX + 1, 0);
+
+void init() {
+    memset(chk, 1, sizeof(chk));
+    memset(mu, 1, sizeof(mu));
+    memset(pre, 0, sizeof(pre));
+    mu[1] = 1;
+    for (int i = 2; i <= MAX; i++) {
+        if (chk[i]) {
+            pri.emplace_back(i);
+            mu[i] = -1;
+        }
+        for (int p : pri) {
+            if ((ll)i * p > MAX) break;
+            chk[i * p] = 0;
+            if (i % p == 0) {
+                mu[i * p] = 0;
+                break;
+            } else mu[i * p] = -mu[i];
+        }
+    }
+    pre[0] = 0;
+    for (int i = 1; i <= MAX; i++) pre[i] = pre[i - 1] + mu[i];
+}
+
+unordered_map<ll, ll> cache;
+ll get(ll n) {
+    if (n <= MAX) return pre[n];
+    if (cache.count(n)) return cache[n];
+    ll ret = 1, i = 2;
+    while (i <= n) {
+        ll j = n / (n / i);
+        ret -= (j - i + 1) * get(n / i);
+        i = j + 1;
+    }
+    return cache[n] = ret;
+}
+\end{minted}
+\subsection{Berlekamp Massey}
+{Requires pow2. Works in $O(N^2)$}
+\begin{minted}{cpp}
+const int MOD = 1e9 + 7;
+
+vll berlekamp_massey(vll x) {
+    vll ls, current;
+    ll lf, ld;
+    for (ll i = 0; i < x.size(); i++) {
+        ll t = 0;
+        for (ll j = 0; j < current.size(); j++) t = (t + 1LL * x[i - j - 1] * current[j]) % MOD;
+        if ((t - x[i]) % MOD == 0) continue;
+        if (current.empty()) {
+            current.resize(i + 1);
+            lf = i;
+            ld = (t - x[i]) % MOD;
+            continue;
+        }
+        ll k = -(x[i] - t) * _pow(ld, MOD - 2) % MOD;
+        vll c(i - lf - 1);
+        c.emplace_back(k);
+        for (auto &j : ls) c.emplace_back(-j * k % MOD);
+        if (c.size() < current.size()) c.resize(current.size());
+        for (ll j = 0; j < current.size(); j++) c[j] = (c[j] + current[j]) % MOD;
+        if (i - lf + (ll)ls.size() >= (ll)current.size()) tie(ls, lf, ld) = make_tuple(current, i, (t - x[i]) % MOD);
+        current = c;
+    }
+    for (auto &i : current) i = (i % MOD + MOD) % MOD;
+    return current;
+}
+
+ll get_nth(vll rec, vll dp, ll n) {
+    ll m = rec.size();
+    vll s(m), t(m);
+    s[0] = 1;
+    if (m != 1) t[1] = 1;
+    else t[0] = rec[0];
+    auto mult = [&rec](vll v, vll w) {
+        ll m = v.size();
+        vll t(2 * m);
+        for (ll j = 0; j < m; j++) {
+            for (ll k = 0; k < m; k++) {
+                t[j + k] += 1LL * v[j] * w[k] % MOD;
+                if (t[j + k] >= MOD) t[j + k] -= MOD;
+            }
+        }
+        for (ll j = 2 * m - 1; j >= m; j--) {
+            for (ll k = 1; k <= m; k++) {
+                t[j - k] += 1LL * t[j] * rec[k - 1] % MOD;
+                if (t[j - k] >= MOD) t[j - k] -= MOD;
+            }
+        }
+        t.resize(m);
+        return t;
+    };
+    while (n) {
+        if (n & 1) s = mult(s, t);
+        t = mult(t, t);
+        n >>= 1;
+    }
+    ll ret = 0;
+    for (ll i = 0; i < m; i++) ret += 1LL * s[i] * dp[i] % MOD;
+    return ret % MOD;
+}
+
+ll guess(vll x, ll n) {
+    if (n < x.size()) return x[n];
+    vll v = berlekamp_massey(x);
+    if (v.empty()) return 0;
+    return get_nth(v, x, n);
+}
+\end{minted}
+
+\subsection{FFT w/ NTT}
+\added
+\subsubsection{FFT?}
+\added
+\subsection{Kitamasa}
+\WIP
+\begin{minted}{cpp}
+constexpr int W = 3;
+using mint = modint<MOD>;
+using poly = mpoly<W, MOD>;
+
+mint kitamasa(poly c, poly a, ll n) {
+    poly d = vector<mint>{1}, xn = vector<mint>{0, 1}, f;
+    for (int i = 0; i < c.a.size(); i++) f.push_back(-c.a[i]);
+    f.push_back(1);
+    while (n) {
+        if (n & 1) d = d * xn % f;
+        n >>= 1;
+        xn = xn * xn % f;
+    }
+
+    d.a.resize(a.size(), 0);
+    mint ret = 0;
+    for (int i = 0; i <= a.deg(); i++) ret += a[i] * d[i];
+    return ret;
+}
+\end{minted}
+\subsection{Mod Int}
+\added
+\subsection{Miller Rabin w/ Pollard Rho}
+\revised
+\begin{minted}{cpp}
+ll mult(ll a, ll b, ll mod) {
+    return a * b % mod;
+}
+
+ll power(ll base, ll exp, ll mod) {
+    ll result = 1;
+    while (exp > 0) {
+        if (exp & 1) result = mult(result, base, mod);
+        base = mult(base, base, mod);
+        exp >>= 1;
+    }
+    return result;
+}
+
+bool miller_rabin(ll n, ll d, ll r, ll a) {
+    ll x = power(a, d, n);
+    if (x == 1 || x == n - 1) return true;
+    for (int i = 1; i < r; i++) {
+        x = mult(x, x, n);
+        if (x == n - 1) return true;
+    }
+    return false;
+}
+
+bool is_prime(ll n) {
+    if (n == 2 || n == 3) return true;
+    if (n <= 1 || !(n & 1)) return false;
+
+    ll d = n - 1, r = 0;
+    while (!(d & 1)) {
+        d >>= 1;
+        r++;
+    }
+
+    int test[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37};
+    for (const int &i: test) {
+        if (i > n - 2) break;
+        if (!miller_rabin(n, d, r, i)) return false;
+    }
+    return true;
+}
+
+ll pollard_rho(ll n) {
+    if (!(n & 1)) return 2;
+    ll x = rand() % (n - 2) + 2, y = x, c = rand() % 10 + 1, d = 1;
+
+    auto f = [&](ll x) { return (mult(x, x, n) + c) % n; };
+
+    while (d == 1) {
+        x = f(x);
+        y = f(f(y));
+        d = __gcd(abs(x - y), n);
+    }
+    return d;
+}
+\end{minted}
+\subsection{Simplex}
+\added
+\subsection{De Brujin Sequence}
+\added
+
+\section{Geometry}
+\subsection{Convex Hull}
+\added
+\subsection{Dynamic Convex Hull}
+\added
+\subsection{3D Convex Hull}
+\added
+\subsection{Smallest Enclosing Sphere/Circle}
+\added
+\subsection{K-D Tree}
+\added
+\subsection{Half Plane Intersection}
+\added
+\subsection{Delauney w/ Vornoi Diagram}
+\added
+\section{Data Structure}
+\subsection{Segment Tree w/ Lazy}
+\added
+\subsection{Splay Tree}
+\added
+\subsection{Link Cut Tree}
+\added
+\subsection{Lichao Tree}
+\added
+
+\section{Strings}
+\subsection{Manacher}
+\added
+\subsection{Hirschberg}
+\added
+\subsection{Round LCS}
+\added
+\subsection{Z}
+\added
+\subsection{Suffix and LCP}
+\added
+\subsection{Palindrome Tree}
+\revised
+\begin{minted}{cpp}
+struct node {
+    ll len, fail, cnt;
+    vint edge;
+
+    node(ll len) : len(len), fail(0), cnt(0), edge(26, 0) {}
+};
+
+class palindrome_tree {
+private:
+    vector<node> tree;
+    string s;
+    ll t, l;
+
+    ll get_fail(ll x, ll pos) {
+        while (pos - tree[x].len - 1 < 0 || s[pos - tree[x].len - 1] != s[pos]) x = tree[x].fail;
+        return x;
+    }
+
+public:
+    palindrome_tree() {
+        tree.emplace_back(0);
+        tree.emplace_back(-1);
+        tree[0].fail = 1;
+        s += '$';
+        t = 1;
+        l = 0;
+    }
+
+    void add_character(char c) {
+        s += c;
+        ll current = get_fail(l, s.size() - 1);
+
+        if (!tree[current].edge[c - 'a']) {
+            ll now = ++t;
+            tree.emplace_back(tree[current].len + 2);
+            tree[now].fail = tree[get_fail(tree[current].fail, s.size() - 1)].edge[c - 'a'];
+            tree[current].edge[c - 'a'] = now;
+        }
+
+        l = tree[current].edge[c - 'a'];
+        tree[l].cnt++;
+    }
+
+    void count_occurrences() {
+        for (ll i = t; i > 0; i--) tree[tree[i].fail].cnt += tree[i].cnt;
+    }
+
+    ll max_occurrence() {
+        ll ret = 0;
+        for (ll i = 2; i <= t; i++) ret = max(ret, tree[i].len * tree[i].cnt);
+        return ret;
+    }
+};
+\end{minted}
+\section{Graph}
+\subsection{Dinic}
+\added
+\subsection{SCC}
+\added
+\subsection{2-SAT}
+\added
+\subsection{Directed MST}
+\added
+\subsection{SCC}
+\added
+\subsection{Global Min Cut}
+\added
+\subsection{General Matching}
+\added
+\subsection{Centroid Decomposition}
+\added
+\subsection{Bipartite Matching}
+\added
+\subsection{Dominator Tree}
+\added
+\subsection{MCMF}
+\added
+\subsection{Gomory Hu Tree}
+\added
+\subsection{BCC}
+\added
+\subsection{Block Cut Tree}
+\added
+\subsection{Cut Vertex/Edge}
+\added
+
+\section{Misc.}
+\subsection{Basic Template}
+\begin{minted}{cpp}
+#include <bits/stdc++.h>
+
+using namespace std;
+using ll = long long;
+using ld = long double;
+using ull = unsigned long long;
+using vint = vector<int>;
+using matrix = vector<vint>;
+using vll = vector<ll>;
+using matrlx = vector<vll>;
+using pii = pair<int, int>;
+using pll = pair<ll, ll>;
+using vpii = vector<pii>;
+using vpll = vector<pll>;
+using dbl = deque<bool>;
+using dbltrix = deque<dbl>;
+using sint = stack<int>;
+using tii = tuple<int, int, int>;
+using vull = vector<ull>;
+
+#define fastio ios::sync_with_stdio(false), cin.tie(NULL), cout.tie(NULL)
+#define endl '\n'
+#define _CRT_SECURE_NO_WARNINGS
+#define all(vec) vec.begin(), vec.end()
+#define rall(vec) vec.rbegin(), vec.rend()
+
+const int INF = 0x3f3f3f3f;
+const ll VINF = 2e18;
+const double PI = acos(-1);
+const int MOD = 998244353;
+
+template <typename t>
+istream& operator>>(istream& in, vector<t>& vec) {
+    for (auto& x : vec) in >> x;
+    return in;
+}
+
+template <typename t, typename u>
+istream& operator>>(istream& in, pair<t, u>& i) {
+    in >> i.first >> i.second;
+    return in;
+}
+\end{minted}
+\subsection{Primes}
+{We Love Primes!}\\
+{List of Evil Primes}
+\begin{minted}{cpp}
+709, 1493, 3209, 6427, 12983, 26267, 53201, 107897, 218971
+\end{minted}
+{List of DFT Friendly Primes}
+\begin{minted}{cpp}
+65537, 4294967291, 1000000007, 7516192771, 998244353
+\end{minted}
+\end{document}
